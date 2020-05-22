@@ -1,4 +1,6 @@
 #directories
 .vs/
+Debug/
+WideCopyAndPaste/Debug/
 #files
 *.user
