@@ -1,5 +1,3 @@
-#include <fstream>
-#include <iostream>
 #include <Windows.h>
 #include <atlstr.h> // for Cstring
 
@@ -29,14 +27,15 @@ void writeDataToClipBoard(CStringW& dataStorage)
 	if (OpenClipboard(nullptr))
 	{
 		EmptyClipboard();
-		HGLOBAL hgBuffer = GlobalAlloc(GMEM_MOVEABLE, (dataStorage.GetLength() + 1) * 2);
 
+		HGLOBAL hgBuffer = GlobalAlloc(GMEM_MOVEABLE, (dataStorage.GetLength() + 1) * 2);
 		memcpy(LPWSTR(GlobalLock(hgBuffer)), LPCWSTR(dataStorage), (dataStorage.GetLength() + 1) * 2); // GetLength count elements NOT bites
 
 		GlobalUnlock(hgBuffer); // unlock data 
 
 		SetClipboardData(CF_UNICODETEXT, hgBuffer); //write to clipboard
 	}
+	CloseClipboard(); 
 
 
 }
@@ -45,41 +44,67 @@ int main()
 
 	using namespace std;
 
-	CStringW dataArr;
-	bool cleanBuffer = false;
+	CStringW dataArr; // place save data from each CTRL + C pressing
+
+	bool wasPressedC = false; // preventing copying while holding keys
+	bool wasPressedV = false; // preventing copying while holding keys
+
 	while (true)
 	{
-		// get ctrl + c pressing
-		if (GetAsyncKeyState(VK_CONTROL) < 0 && GetAsyncKeyState(0x43) < 0)
+		if ((GetAsyncKeyState(VK_CONTROL) < 0))
 		{
-			// wait 50ms to give time for program wich called ctrl+c write data to the clipboard
-			Sleep(50);
-
-
-			if (OpenClipboard(nullptr))
+			// get ctrl + c processing  -> copy processing
+			if ((GetAsyncKeyState(0x43) < 0) && !wasPressedC)
 			{
-				if (IsClipboardFormatAvailable(CF_UNICODETEXT))
-				{
+				// wait 50ms to give time for program wich called ctrl+c write data to the clipboard
+				Sleep(30);
 
-					getDataFromClipboard(dataArr); 
-					writeDataToClipBoard(dataArr); 
-		
+				wasPressedC = true;
+
+				if (OpenClipboard(nullptr))
+				{
+					if (IsClipboardFormatAvailable(CF_UNICODETEXT))
+					{
+
+						getDataFromClipboard(dataArr);
+						writeDataToClipBoard(dataArr);
+
+					}
+					CloseClipboard();
 				}
-				CloseClipboard();
+
+			}
+			else if (!(GetAsyncKeyState(0x43) & 0x8000)) // if we dismissed C
+			{
+				wasPressedC = false;
 			}
 
+			// get ctrl + V processing -> paste processing
+			if ((GetAsyncKeyState(0x56) < 0) && !wasPressedV)
+			{
+				wasPressedV = true;
+
+				// pause to give another program copy data from the clipboard
+				Sleep(30);
+
+				// clean data storage
+				dataArr = "";
+				writeDataToClipBoard(dataArr);
+
+			}
+			else if (!(GetAsyncKeyState(0x56) & 0x8000))// if we dismissed V
+			{
+				wasPressedV = false;
+			}
+
+			// get ctrl + B proessing
+			if ((GetAsyncKeyState(0x42) < 0)) // press CTRL + B to close the program
+			{
+				break;
+			}
 		}
-		
-		if (GetAsyncKeyState(VK_CONTROL) < 0 && GetAsyncKeyState(0x56) < 0 && dataArr.GetLength() > 0 )
-		{
-			Sleep(20);
-			dataArr = "";
-			writeDataToClipBoard(dataArr); 
-
-			// doesn`t work correctly
-		}
-		Sleep(100);
-
-
 	}
+
+
+	return 0; 
 }
